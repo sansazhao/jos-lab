@@ -1,0 +1,150 @@
+﻿学号：516030910422
+姓名：赵樱
+
+[Question]
+Question 1:
+uintptr_t。进入保护模式后，指针是虚拟地址，所有内存引用会经过MMU的转换。
+
+Question 2:
+entry   Basic Virtual Address   Points to (logically):
+1023    0xFFC00000              Page table for top 4MB of phys memory
+960     0xF0000000              Remapped phys memory
+959     0xEFFF8000              CPU0's kernel stack
+957     0xEF400000              Current page table (User R-)  
+956     0xEF000000              Pages read-only by users
+0       0x00000000              Empty memory(*)
+
+Question 3:
+因为映射KERNBASE和kernel stack时，pte的PTE_U位是0，所以User没有权限对kernel memory进行读写
+
+Question 4:
+2GB。
+UPAGES处有PTSIZE=4M的空间给pages数据结构，可以存放4M/8 = 512K个PageInfo，所以最大可以支持512K*4K = 2GB的物理内存。
+
+Question 5:
+pgdir: 4KB
+page table: (4KB / 4) * 4KB = 4MB
+pages: npages * sizeof(struct PageInfo) = 32KB*8 = 256KB
+total = 4MB+4KB+256KB = 4356KB (4.25MB)
+使用大页可以减少页表空间。
+
+Question 6:
+entry.S：   mov	$relocated, %eax
+	        jmp	*%eax
+(1)在进入C代码之前jmp
+(2)虚拟地址[0, 4MB)和[kernbase,kernbase+4MB)都映射到物理地址[0,4MB),
+jmp只要将地址加上kernbase, 因为映射同一块空间，运行不会受影响。
+(3)这样从高地址内核态开始运行，低地址给user program使用。
+
+[Challenge]
+1. showmappings 
+- 命令格式：showmappings [start PA] [end PA]
+- 调用pgdir_walk，找到PTE，显示va, PTE_P, PTE_W, PTE_U
+
+2. permission change
+- 命令格式：perm set/clr [pa] [UR/UW/KW]
+
+输出结果：(txt显示可能有错位)
+K> showmappings 0x1000 0x5000
+virt addr     phys addr        PTE_P   PTE_W   PTE_U
+0xf0001000    0x00001000       1       1       1
+0xf0002000    0x00002000       1       1       0
+0xf0003000    0x00003000       1       1       0
+0xf0004000    0x00004000       1       1       0
+
+K> perm set 0x2000 UW
+virt addr	     PTE_W   PTE_U
+0xf0002000           1       1
+K> perm clr 0x4000 KW
+virt addr	     PTE_W   PTE_U
+0xf0004000           0       0
+
+K> showmappings 0x1000 0x5000
+virt addr     phys addr        PTE_P   PTE_W   PTE_U
+0xf0001000    0x00001000       1       1       1
+0xf0002000    0x00002000       1       1       1
+0xf0003000    0x00003000       1       1       0
+0xf0004000    0x00004000       1       0       0
+
+K> showmappings 0x1000
+showmappings [start PA] [end PA]
+K> perm set 0x1000 RW
+invalid perm options
+virt addr	     PTE_W   PTE_U
+0xf0001000           1       0
+
+3. dump：输入起始位置和size大小，显示所有字节
+K> dump
+dump pa/va [addr] [size]
+K> dump pa 0x1000 20
+virt addr     content
+0xf0001000    97 97 97 97
+0xf0001004    97 97 97 97
+0xf0001008    97 97 97 97
+0xf000100c    97 97 97 97
+0xf0001010    97 97 97 97
+K> dump va 0xef000000 20
+virt addr     content
+0xef000000    00 00 00 00
+0xef000004    01 00 00 00
+0xef000008    f8 df 15 f0
+0xef00000c    00 00 00 00
+0xef000010    08 e0 11 f0
+
+
+[Exercise]
+
+Exercise 1
+boot_alloc(): 返回当前nextfree，将nextfree加上ROUND_UP(n,PGSIZE)，保证与PGSIZE对齐。
+
+mem_init(): 
+- 用boot_alloc()分配npages个pageInfo给pages，并初始化为0。
+
+page_init(): 初始化所有物理页，需要标记2类：已用的/free的。
+调用PADDR(boot_alloc(0))得到空闲页的起始位置，将page 0、used page的ref置为1, link置为NULL(所有已用页的link置为NULL, 防止两次free);
+其余的base memory和空闲页置为free, pp_link置为free_list。
+
+Exercise 3
+- make qemu-nox后按ctrl-a c后进入(qemu)monitor
+返回结果：
+(qemu) info mem
+00000000ef000000-00000000ef400000 0000000000400000 ur-
+00000000ef7bc000-00000000ef7be000 0000000000002000 ur-
+00000000ef7bf000-00000000ef7c0000 0000000000001000 ur-
+00000000ef7c0000-00000000ef800000 0000000000040000 -r-
+00000000efff8000-0000000100000000 0000000010008000 -rw
+
+Exercise 4
+pgdir_walk(): 
+- 查看pgdir下是否命中相应的PDX，有则直接返回指向二级页表PTE的指针
+- 若没有且create参数为0，返回NULL
+- 否则，调用page_alloc分配一个清零的页，增加该页的ref；调用page2pa得到该页的物理地址pa，写入目录pgdir的PDX下，返回指向PTX的指针
+
+boot_map_region():
+- 调用pgdir_walk分配size/PGSIZE个页，并将pa写入返回的pte指针中
+
+boot_map_region_large():
+- 4M大页需要22位Offset, 10位页表索引，所以直接在pgdir相应的PDX中写入size/PTSIZE个大页的物理地址
+
+page_lookup():
+- 调用pgdir_walk(create=0)，若页未分配，返回NULL
+- 否则，将找到的pte存入pte_store，返回该pte的对应的物理页指针(调用pa2page)
+
+page_remove():
+- 调用page_lookup，若未找到页则直接返回
+- 调用page_decref，将ref--，若ref为0则会free该页
+- 将页表中对应的PTX清零，调用tlb_invlidate flush掉TLB中的条目。
+
+page_insert():
+- 调用pgdir_walk(create=1)，若条目为空，返回-E_NO_MEM
+- 将物理页的pp_ref加1、pp_link置为NULL。
+- 若pte已经分配，调用page_remove。这样先加ref可以解决同一位置insert同一物理页的情况。
+- 将插入的物理页pa和权限写入pte中。
+
+Exercise 5
+mem_init(): 
+- 用boot_map_region()映射[UPAGES, UPAGES+PTSIZE)的va到刚刚分配完的pages的物理地址。
+- 用boot_map_region()映射kernel stack， 权限置为PTE_W。
+- 用boot_map_region_large()映射KERNBASE处全部物理内存为大页，权限置为PTE_W。
+在测试后lcr3时install失败, 发现默认是小页映射, 需要开启Page Size Extension，所以在lcr3前增加：
+cr4 |= CR4_PSE, lcr4(cr4), 置上PSE位后通过了测试。
