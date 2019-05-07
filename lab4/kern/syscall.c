@@ -138,7 +138,6 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 	// LAB 4: Your code here.
 	int r;
 	struct Env *e;
-
 	if ((r = envid2env(envid, &e, 1)) < 0)
 		return r;
 	e->env_pgfault_upcall = func;
@@ -377,6 +376,21 @@ sys_sbrk(uint32_t inc)
     return curenv->env_break;
 }
 
+int32_t
+syscall_with_lock(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5, struct Trapframe * tf)
+{
+	int32_t r = 0;
+	// cprintf("sysenter\n");
+	lock_kernel();
+  	curenv->env_tf.tf_eip = tf->tf_eip;
+	curenv->env_tf.tf_esp = tf->tf_esp;
+  	curenv->env_tf.tf_regs = tf->tf_regs;
+
+	r = syscall(syscallno, a1, a2, a3, a4, a5);
+	unlock_kernel();
+	return r;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -384,7 +398,6 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Call the function corresponding to the 'syscallno' parameter.
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
-	int32_t ret = 0;
 	switch (syscallno) {
 	case SYS_cputs:
 		sys_cputs((char*)a1, (size_t)a2);

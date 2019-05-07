@@ -85,7 +85,7 @@ void align_handler();
 void mchk_handler();
 void simderr_handler();
 void syscall_handler();
-// void sysenter_handler();
+void sysenter_handler();
 
 void irq_timer_handler();
 void irq_kbd_handler();
@@ -112,24 +112,24 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
-	SETGATE(idt[T_DIVIDE], 1, GD_KT, divide_handler, 0);
-	SETGATE(idt[T_DEBUG], 1, GD_KT, debug_handler, 0);
-	SETGATE(idt[T_NMI], 1, GD_KT, nmi_handler, 0);
+	SETGATE(idt[T_DIVIDE], 0, GD_KT, divide_handler, 0);
+	SETGATE(idt[T_DEBUG], 0, GD_KT, debug_handler, 0);
+	SETGATE(idt[T_NMI], 0, GD_KT, nmi_handler, 0);
 	SETGATE(idt[T_BRKPT], 0, GD_KT, brkpt_handler, 3);
-	SETGATE(idt[T_OFLOW], 1, GD_KT, oflow_handler, 3);
-	SETGATE(idt[T_BOUND], 1, GD_KT, bound_handler, 3);
-	SETGATE(idt[T_ILLOP], 1, GD_KT, illop_handler, 0);
-	SETGATE(idt[T_DEVICE], 1, GD_KT, device_handler, 0);
-	SETGATE(idt[T_DBLFLT], 1, GD_KT, dblflt_handler, 0);
-	SETGATE(idt[T_TSS], 1, GD_KT, tss_handler, 0);
-	SETGATE(idt[T_SEGNP], 1, GD_KT, segnp_handler, 0);
-	SETGATE(idt[T_STACK], 1, GD_KT, stack_handler, 0);
-	SETGATE(idt[T_GPFLT], 1, GD_KT, gpflt_handler, 0);
-	SETGATE(idt[T_PGFLT], 1, GD_KT, pgflt_handler, 0);
-	SETGATE(idt[T_FPERR], 1, GD_KT, fperr_handler, 0);
-	SETGATE(idt[T_ALIGN], 1, GD_KT, align_handler, 0);
-	SETGATE(idt[T_MCHK], 1, GD_KT, mchk_handler, 0);
-	SETGATE(idt[T_SIMDERR], 1, GD_KT, simderr_handler, 0);
+	SETGATE(idt[T_OFLOW], 0, GD_KT, oflow_handler, 3);
+	SETGATE(idt[T_BOUND], 0, GD_KT, bound_handler, 3);
+	SETGATE(idt[T_ILLOP], 0, GD_KT, illop_handler, 0);
+	SETGATE(idt[T_DEVICE], 0, GD_KT, device_handler, 0);
+	SETGATE(idt[T_DBLFLT], 0, GD_KT, dblflt_handler, 0);
+	SETGATE(idt[T_TSS], 0, GD_KT, tss_handler, 0);
+	SETGATE(idt[T_SEGNP], 0, GD_KT, segnp_handler, 0);
+	SETGATE(idt[T_STACK], 0, GD_KT, stack_handler, 0);
+	SETGATE(idt[T_GPFLT], 0, GD_KT, gpflt_handler, 0);
+	SETGATE(idt[T_PGFLT], 0, GD_KT, pgflt_handler, 0);
+	SETGATE(idt[T_FPERR], 0, GD_KT, fperr_handler, 0);
+	SETGATE(idt[T_ALIGN], 0, GD_KT, align_handler, 0);
+	SETGATE(idt[T_MCHK], 0, GD_KT, mchk_handler, 0);
+	SETGATE(idt[T_SIMDERR], 0, GD_KT, simderr_handler, 0);
 	SETGATE(idt[T_SYSCALL], 0, GD_KT, syscall_handler, 3);
 
 	//IRQ
@@ -191,12 +191,12 @@ trap_init_percpu(void)
 	thiscpu->cpu_ts.ts_ss0 = GD_KD;
 	thiscpu->cpu_ts.ts_iomb = sizeof(struct Taskstate);
 
-	// wrmsr(0x174, GD_KT, 0);           /* SYSENTER_CS_MSR */
-	// wrmsr(0x175, thiscpu->cpu_ts.ts_esp0, 0);       /* SYSENTER_ESP_MSR */
-	// wrmsr(0x176, sysenter_handler, 0);/* SYSENTER_EIP_MSR */
+	wrmsr(0x174, GD_KT, 0);           				/* SYSENTER_CS_MSR */
+	wrmsr(0x175, thiscpu->cpu_ts.ts_esp0, 0);       /* SYSENTER_ESP_MSR */
+	wrmsr(0x176, sysenter_handler, 0);				/* SYSENTER_EIP_MSR */
 	// // Initialize the TSS slot of the gdt.
 	gdt[(GD_TSS0 >> 3) + i] = SEG16(STS_T32A, (uint32_t) (&(thiscpu->cpu_ts)),
-					sizeof(struct Taskstate) - 1, 0);
+					sizeof(struct Taskstate), 0);
 	gdt[(GD_TSS0 >> 3) + i].sd_s = 0;
 
 	// Load the TSS selector (like other segment selectors, the
@@ -262,6 +262,7 @@ trap_dispatch(struct Trapframe *tf)
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
 	// IRQ line or other reasons. We don't care.
+	
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_SPURIOUS) {
 		cprintf("Spurious interrupt on irq 7\n");
 		print_trapframe(tf);
@@ -278,7 +279,6 @@ trap_dispatch(struct Trapframe *tf)
 		return;
 	}
 	else if (tf->tf_trapno == T_PGFLT) {	//14
-		// cprintf("\ntrap_dispatch: PF\n");
 		page_fault_handler(tf);
 		return;
 	}
@@ -287,7 +287,6 @@ trap_dispatch(struct Trapframe *tf)
 		return;
 	}
 	else if (tf->tf_trapno == T_SYSCALL) {
-		// cprintf("\ntrap_dispatch: syscall\n");
 		tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax,
 									  tf->tf_regs.reg_edx,
 									  tf->tf_regs.reg_ecx, 

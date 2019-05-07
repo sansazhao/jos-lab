@@ -217,12 +217,12 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
+// boot_map_region_large(kern_pgdir, KERNBASE, 0xFFFFFFFF - KERNBASE + 1, 0, PTE_W);
+	boot_map_region_large(kern_pgdir, KERNBASE, - KERNBASE, 0, PTE_W);
 
 	// Initialize the SMP-related parts of the memory map
 	mem_init_mp();
-	// boot_map_region_large(kern_pgdir, KERNBASE, 0xFFFFFFFF - KERNBASE + 1, 0, PTE_W);
-	boot_map_region_large(kern_pgdir, KERNBASE, - KERNBASE, 0, PTE_W);
-
+	
 	// Check that the initial page directory has been set up correctly.
 	check_kern_pgdir();
 

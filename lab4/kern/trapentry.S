@@ -87,18 +87,50 @@ TRAPHANDLER_NOEC(irq_13, IRQ_OFFSET+13)
 TRAPHANDLER_NOEC(irq_15, IRQ_OFFSET+15)
 
 
+/** Trapframe
+struct PushRegs tf_regs;
+	uint16_t tf_es;
+	uint16_t tf_padding1;
+	uint16_t tf_ds;
+	uint16_t tf_padding2;
+	uint32_t tf_trapno;
+	// hardware 
+	uint32_t tf_err;
+	uintptr_t tf_eip;
+	uint16_t tf_cs;
+	uint16_t tf_padding3;
+	uint32_t tf_eflags;
+	// below here only when crossing rings, such as from user to kernel 
+	uintptr_t tf_esp;
+	uint16_t tf_ss;
+	uint16_t tf_padding4;
+**/
+
 .globl sysenter_handler;
 sysenter_handler:
-	pushl %esi			#pc
-	pushl %edi
-	pushl %ebx
-	pushl %ecx
-	pushl %edx
-	pushl %eax			#syscall number
-	call syscall
+	pushl $GD_UD | 3	#tf_ss, see in memout.h and env.c
+	pushl %ebp			#tf_esp
+	pushfl				#tf_eflags
+	pushl $GD_UT | 3	#tf_cs
+	pushl %esi			#tf_eip
+	pushl $0			#tf_err
+	pushl $T_SYSCALL	#tf_trapno
+	pushl %ds
+	pushl %es
+	pushal				#tf_regs
+	pushl %esp			#tf, trashed by sysenter
+	pushl 0x4(%ebp)		#a5 return pc
+	# pushl %esi			#return pc
+	pushl %edi			#a4
+	pushl %ebx			#a3
+	pushl %ecx			#a2
+	pushl %edx			#a1
+	pushl %eax			#syscallno and return value 
+	call syscall_with_lock		#the wrapper of syscall
 	movl %ebp, %ecx		#esp -> arg2
 	movl %esi, %edx		#pc -> arg1
-	sysexit				#esp to ecx, eip to edx
+	sti					#unmask hardware interrupts before sysexit
+	sysexit				#eip -> edx, esp -> ecx, 
 
 /*
  * Lab 3: Your code here for _alltraps
@@ -114,6 +146,4 @@ _alltraps:
 	movw %ax, %ds
 	movw %ax, %es
 	pushl %esp
-	cli
 	call trap
-	sti

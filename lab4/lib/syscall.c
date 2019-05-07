@@ -21,28 +21,27 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// memory locations.
 	// leal after_sysenter_label, %%esi
 	asm volatile( 
-			"int %1\n\t"
-			// "pushl %%ecx\n\t"
-			// "pushl %%edx\n\t"
-			// "pushl %%ebx\n\t"
-			// "pushl %%esp\n\t"
-			// "pushl %%ebp\n\t"
-			// "pushl %%esi\n\t"
-			// "pushl %%edi\n\t"
-			// // "leal after_sysenter_label%=, %%esi\n\t"
-			// // "movl %%esp, %%ebp\n\t"
-			// // "sysenter\n\t"
-			// // "after_sysenter_label%=: \n\t"
-			// "popl %%edi\n\t"
-			// "popl %%esi\n\t"
-			// "popl %%ebp\n\t"
-			// "popl %%esp\n\t"
-			// "popl %%ebx\n\t"
-			// "popl %%edx\n\t"
-			// "popl %%ecx\n\t"
-		     : "=a" (ret)
-		     : "i" (T_SYSCALL),
-		       "a" (num),
+			// "int %1\n\t"
+			"pushl %%ecx\n\t"
+			"pushl %%edx\n\t"
+			"pushl %%ebx\n\t"
+			"pushl %%esp\n\t"
+			"pushl %%ebp\n\t"
+			"pushl %%esi\n\t"
+			"pushl %%edi\n\t"
+			"leal after_sysenter_label%=, %%esi\n\t"
+			"movl %%esp, %%ebp\n\t"
+			"sysenter\n\t"
+			"after_sysenter_label%=: \n\t"
+			"popl %%edi\n\t"
+			"popl %%esi\n\t"
+			"popl %%ebp\n\t"
+			"popl %%esp\n\t"
+			"popl %%ebx\n\t"
+			"popl %%edx\n\t"
+			"popl %%ecx\n\t"
+		     : "=a" (ret)		//  : "i" (T_SYSCALL),
+		     : "a" (num),
 		       "d" (a1),
 		       "c" (a2),
 		       "b" (a3),
