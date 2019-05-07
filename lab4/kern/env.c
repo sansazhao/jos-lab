@@ -256,7 +256,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
-
+	e->env_tf.tf_eflags |= FL_IF;
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
 
@@ -504,6 +504,7 @@ env_pop_tf(struct Trapframe *tf)
 		"\tpopl %%es\n"
 		"\tpopl %%ds\n"
 		"\taddl $0x8,%%esp\n" /* skip tf_trapno and tf_errcode */
+		// "\tcli\n"
 		"\tiret\n"
 		: : "g" (tf) : "memory");
 	panic("iret failed");  /* mostly to placate the compiler */

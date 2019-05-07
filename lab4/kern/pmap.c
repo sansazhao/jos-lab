@@ -187,7 +187,7 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U | PTE_P);
+	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U);
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
 	// (ie. perm = PTE_U | PTE_P).
@@ -195,7 +195,7 @@ mem_init(void)
 	//    - the new image at UENVS  -- kernel R, user R
 	//    - envs itself -- kernel RW, user NONE
 	// LAB 3: Your code here.
-	boot_map_region(kern_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U | PTE_P);
+	boot_map_region(kern_pgdir, UENVS, PTSIZE, PADDR(envs), PTE_U);
 	//////////////////////////////////////////////////////////////////////
 	// Use the physical memory that 'bootstack' refers to as the kernel
 	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
@@ -514,6 +514,7 @@ page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 	pp->pp_link = NULL;
 	if (*pte & PTE_P)
 		page_remove(pgdir, va);
+
 	*pte = page2pa(pp) | perm | PTE_P;
 	return 0;
 }
@@ -616,6 +617,8 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Your code here:
 	// panic("mmio_map_region not implemented");
 	size = ROUNDUP(size, PGSIZE);
+	pa   = ROUNDDOWN(pa, PGSIZE);
+
 	if (base + size > MMIOLIM)
 		panic("mmio_map_region: reservagtion overflow\n");
 	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD|PTE_PWT|PTE_W);
@@ -649,7 +652,7 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 	// LAB 3: Your code here.
 	uintptr_t va_start = (uintptr_t)va;
 	uintptr_t va_end = (uintptr_t)va + len;
-	perm |= PTE_P;
+	perm |= PTE_P;	
 	for (uintptr_t addr = va_start; addr < va_end; addr += PGSIZE) {
 		if (addr >= ULIM) {
 			user_mem_check_addr = addr;

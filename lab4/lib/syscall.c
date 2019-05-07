@@ -20,7 +20,8 @@ syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// potentially change the condition codes and arbitrary
 	// memory locations.
 	// leal after_sysenter_label, %%esi
-	asm volatile( "int %1\n"
+	asm volatile( 
+			"int %1\n\t"
 			// "pushl %%ecx\n\t"
 			// "pushl %%edx\n\t"
 			// "pushl %%ebx\n\t"

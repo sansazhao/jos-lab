@@ -175,7 +175,6 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 	struct PageInfo *pp;
 	struct Env *e;
 	int r;
-	cprintf("sys_page_alloc\n");
 	if ((r = envid2env(envid, &e, 1)) < 0)
 		return r;
 	if ((uint32_t)va >= UTOP || PGOFF(va) || perm & (~PTE_SYSCALL) 
@@ -308,26 +307,29 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	struct Env *e;
 	pte_t *pte;
 	int r;
-	if ((r = envid2env(envid, &e, 1)) < 0)
+	if ((r = envid2env(envid, &e, 0)) < 0)
 		return r;
 	if (!e->env_ipc_recving)
 		return -E_IPC_NOT_RECV;
-	if ((uint32_t)srcva < UTOP) {
-		if (PGOFF(srcva) || perm & ~PTE_SYSCALL 
+	if (srcva < (void *)UTOP) {
+		if (PGOFF(srcva) || perm & (~PTE_SYSCALL) 
 				|| (perm & (PTE_U | PTE_P)) != (PTE_U | PTE_P))
 			return -E_INVAL;
-		if (!(pp = page_lookup(e->env_pgdir, srcva, &pte)))
+		if (!(pp = page_lookup(curenv->env_pgdir, srcva, &pte)))
 			return -E_INVAL;
-		if ((perm & PTE_W) && !(*pte & PTE_W))
+		if ((perm & PTE_W) && (!(*pte & PTE_W)))
 			return -E_INVAL;
-		if ((r = page_insert(e->env_pgdir, pp, srcva, perm)) < 0)
-			return r;
+		if (e->env_ipc_dstva < (void *)UTOP) {	//receiver share 
+			if ((r = page_insert(e->env_pgdir, pp, e->env_ipc_dstva, perm)) < 0)
+				return r;
+		}
 	} 
 	e->env_ipc_recving = 0;
 	e->env_ipc_from = curenv->env_id;
 	e->env_ipc_value = value;
 	e->env_ipc_perm = perm;
 	e->env_status = ENV_RUNNABLE;
+	e->env_tf.tf_regs.reg_eax = 0;
 	return 0;
 }
 

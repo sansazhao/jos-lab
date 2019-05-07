@@ -87,31 +87,69 @@ void simderr_handler();
 void syscall_handler();
 // void sysenter_handler();
 
+void irq_timer_handler();
+void irq_kbd_handler();
+void irq_serial_handler();
+void irq_spurious_handler();
+void irq_ide_handler();
+void irq_error_handler();
+
+void irq_2();
+void irq_3();
+void irq_5();
+void irq_6();
+void irq_8();
+void irq_9();
+void irq_10();
+void irq_11();
+void irq_12();
+void irq_13();
+void irq_15();
+
 void
 trap_init(void)
 {
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
-	SETGATE(idt[T_DIVIDE], 1, GD_KT, divide_handler,0);
-	SETGATE(idt[T_DEBUG], 1, GD_KT, debug_handler,0);
-	SETGATE(idt[T_NMI], 1, GD_KT, nmi_handler,0);
-	SETGATE(idt[T_BRKPT], 0, GD_KT, brkpt_handler,3);
-	SETGATE(idt[T_OFLOW], 1, GD_KT, oflow_handler,3);
-	SETGATE(idt[T_BOUND], 1, GD_KT, bound_handler,3);
-	SETGATE(idt[T_ILLOP], 1, GD_KT, illop_handler,0);
-	SETGATE(idt[T_DEVICE], 1, GD_KT, device_handler,0);
-	SETGATE(idt[T_DBLFLT], 1, GD_KT, dblflt_handler,0);
-	SETGATE(idt[T_TSS], 1, GD_KT, tss_handler,0);
-	SETGATE(idt[T_SEGNP], 1, GD_KT, segnp_handler,0);
-	SETGATE(idt[T_STACK], 1, GD_KT, stack_handler,0);
-	SETGATE(idt[T_GPFLT], 1, GD_KT, gpflt_handler,0);
-	SETGATE(idt[T_PGFLT], 1, GD_KT, pgflt_handler,0);
-	SETGATE(idt[T_FPERR], 1, GD_KT, fperr_handler,0);
-	SETGATE(idt[T_ALIGN], 1, GD_KT, align_handler,0);
-	SETGATE(idt[T_MCHK], 1, GD_KT, mchk_handler,0);
-	SETGATE(idt[T_SIMDERR], 1, GD_KT, simderr_handler,0);
-	SETGATE(idt[T_SYSCALL], 0, GD_KT, syscall_handler,3);
+	SETGATE(idt[T_DIVIDE], 1, GD_KT, divide_handler, 0);
+	SETGATE(idt[T_DEBUG], 1, GD_KT, debug_handler, 0);
+	SETGATE(idt[T_NMI], 1, GD_KT, nmi_handler, 0);
+	SETGATE(idt[T_BRKPT], 0, GD_KT, brkpt_handler, 3);
+	SETGATE(idt[T_OFLOW], 1, GD_KT, oflow_handler, 3);
+	SETGATE(idt[T_BOUND], 1, GD_KT, bound_handler, 3);
+	SETGATE(idt[T_ILLOP], 1, GD_KT, illop_handler, 0);
+	SETGATE(idt[T_DEVICE], 1, GD_KT, device_handler, 0);
+	SETGATE(idt[T_DBLFLT], 1, GD_KT, dblflt_handler, 0);
+	SETGATE(idt[T_TSS], 1, GD_KT, tss_handler, 0);
+	SETGATE(idt[T_SEGNP], 1, GD_KT, segnp_handler, 0);
+	SETGATE(idt[T_STACK], 1, GD_KT, stack_handler, 0);
+	SETGATE(idt[T_GPFLT], 1, GD_KT, gpflt_handler, 0);
+	SETGATE(idt[T_PGFLT], 1, GD_KT, pgflt_handler, 0);
+	SETGATE(idt[T_FPERR], 1, GD_KT, fperr_handler, 0);
+	SETGATE(idt[T_ALIGN], 1, GD_KT, align_handler, 0);
+	SETGATE(idt[T_MCHK], 1, GD_KT, mchk_handler, 0);
+	SETGATE(idt[T_SIMDERR], 1, GD_KT, simderr_handler, 0);
+	SETGATE(idt[T_SYSCALL], 0, GD_KT, syscall_handler, 3);
+
+	//IRQ
+	SETGATE(idt[IRQ_OFFSET+IRQ_TIMER], 0, GD_KT, irq_timer_handler, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_KBD], 0, GD_KT, irq_kbd_handler, 0);
+	SETGATE(idt[IRQ_OFFSET+2], 0, GD_KT, irq_2, 0);
+	SETGATE(idt[IRQ_OFFSET+3], 0, GD_KT, irq_3, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_SERIAL], 0, GD_KT, irq_serial_handler, 0);
+	SETGATE(idt[IRQ_OFFSET+5], 0, GD_KT, irq_5, 0);
+	SETGATE(idt[IRQ_OFFSET+6], 0, GD_KT, irq_6, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_SPURIOUS], 0, GD_KT, irq_spurious_handler, 0);
+	SETGATE(idt[IRQ_OFFSET+8], 0, GD_KT, irq_8, 0);
+	SETGATE(idt[IRQ_OFFSET+9], 0, GD_KT, irq_9, 0);
+	SETGATE(idt[IRQ_OFFSET+10], 0, GD_KT, irq_10, 0);
+	SETGATE(idt[IRQ_OFFSET+11], 0, GD_KT, irq_11, 0);
+	SETGATE(idt[IRQ_OFFSET+12], 0, GD_KT, irq_12, 0);
+	SETGATE(idt[IRQ_OFFSET+13], 0, GD_KT, irq_13, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_IDE], 0, GD_KT, irq_ide_handler, 0);
+	SETGATE(idt[IRQ_OFFSET+15], 0, GD_KT, irq_15, 0);
+	SETGATE(idt[IRQ_OFFSET+IRQ_ERROR], 0, GD_KT, irq_error_handler, 0);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -234,7 +272,7 @@ trap_dispatch(struct Trapframe *tf)
 	// interrupt using lapic_eoi() before calling the scheduler!
 	// LAB 4: Your code here.
 	if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {	//32
-		// cprintf("\ntrap_dispatch: rr\n");
+		// cprintf("\ntrap_dispatch: timer\n");
 		lapic_eoi();
 		sched_yield();
 		return;
@@ -275,7 +313,6 @@ trap(struct Trapframe *tf)
 	// The environment may have set DF and some versions
 	// of GCC rely on DF being clear
 	asm volatile("cld" ::: "cc");
-
 	// Halt the CPU if some other CPU has called panic()
 	extern char *panicstr;
 	if (panicstr)
@@ -296,7 +333,6 @@ trap(struct Trapframe *tf)
 		// serious kernel work.
 		// LAB 4: Your code here.
 		assert(curenv);
-		// cprintf("\ntrap: lock\n");
 		lock_kernel();
 		// Garbage collect if current enviroment is a zombie
 		if (curenv->env_status == ENV_DYING) {
@@ -375,7 +411,7 @@ page_fault_handler(struct Trapframe *tf)
 	// LAB 4: Your code here.
 	if (curenv->env_pgfault_upcall) {
 		struct UTrapframe * utf;
-		if (UXSTACKTOP - tf->tf_esp < PGSIZE)	//current page another page fault
+		if ((uintptr_t)(UXSTACKTOP - tf->tf_esp) < PGSIZE)	//current page another page fault
 			utf = (struct UTrapframe * )(tf->tf_esp - sizeof(void *) - sizeof(struct UTrapframe)); //1 word
 		else 
 			utf = (struct UTrapframe * )(UXSTACKTOP - sizeof(struct UTrapframe));
