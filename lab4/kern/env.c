@@ -539,12 +539,14 @@ env_run(struct Env *e)
 	if (!e) panic("env_run: NULL e\n");
 	if (curenv != e) {	//context switch
 		if (curenv && curenv->env_status == ENV_RUNNING)
-			curenv->env_status = ENV_NOT_RUNNABLE;
+			curenv->env_status = ENV_RUNNABLE;
 		curenv = e;
 		curenv->env_status = ENV_RUNNING;
 		curenv->env_runs++;
 		lcr3(PADDR(curenv->env_pgdir));	//switch
 	}
+	// cprintf("\nenv_run: unlock\n");
+	unlock_kernel();
 	env_pop_tf(&curenv->env_tf);
 	// panic("env_run not yet implemented");
 }

@@ -274,7 +274,9 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
-
+	for (int i = 0; i < NCPU; i++) {
+		boot_map_region(kern_pgdir, KSTACKTOP - i*(KSTKSIZE+KSTKGAP)-KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
+	} 
 }
 
 // --------------------------------------------------------------
@@ -614,7 +616,7 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Your code here:
 	// panic("mmio_map_region not implemented");
 	size = ROUNDUP(size, PGSIZE);
-	if (base+size > MMIOLIM)
+	if (base + size > MMIOLIM)
 		panic("mmio_map_region: reservagtion overflow\n");
 	boot_map_region(kern_pgdir, base, size, pa, PTE_PCD|PTE_PWT|PTE_W);
 	base += size;
